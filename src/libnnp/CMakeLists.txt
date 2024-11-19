@@ -13,3 +13,10 @@ file(GLOB HDR_FILES "*.h")
 add_library(nnp ${SRC_FILES})   # Build libnnp.X library. (Shared, pass -D BUILD_SHARED_LIBS)
 install(FILES ${HDR_FILES} DESTINATION ${PROJECT_INCLUDE})   # Headers copied at install time
 ###################################################################################################
+
+###################################################################################################
+# Find Required Package dependencies
+find_package(MPI REQUIRED)
+target_link_libraries(nnp MPI)
+include_directories(${MPI_INCLUDE_PATH})
+###################################################################################################

@@ -16,10 +16,9 @@ install(FILES ${HDR_FILES} DESTINATION ${PROJECT_INCLUDE})   # Headers copied at
 
 ###################################################################################################
 # Find Required Package dependencies
-message("DIR: ${PROJECT_SOURCE_DIR}/libnnp")
 find_package(MPI REQUIRED)
 find_package(GSL REQUIRED)
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
-include_directories(${PROJECT_SOURCE_DIR}/libnnp ${GSL_INCLUDE_DIRS})
+include_directories(${MPI_INCLUDE_PATH} ${PROJECT_SOURCE_DIR}/libnnp ${GSL_INCLUDE_DIRS})
 target_link_libraries(nnptrain MPI GSL Eigen3::Eigen)
 ###################################################################################################
