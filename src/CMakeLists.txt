@@ -30,6 +30,68 @@ set(CMAKE_SHARED_LIBRARY_SUFFIX .so)
 ###################################################################################################
 # Document CLI Option Defaults
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
+option(N2P2_NO_SF_GROUPS "Disable Symmetry function groups (NOT RECOMMENDED)" OFF)
+option(N2P2_FULL_SFD_MEMORY "Store zero symmetry function derivatives" OFF)
+option(N2P2_NO_SF_CACHE "Do not use symmetry function cache." OFF)
+option(N2P2_NO_ASYM_POLY "Disable asymmetric polynomial symmetry functions." OFF)
+option(N2P2_NO_TIME "Build with dummy Stopwatch class." OFF)
+option(N2P2_NO_NEIGH_CHECK "Disable check for low number of neighbors." OFF)
+option(N2P2_NO_MPI "Compile without MPI support." OFF)
+option(NDEBUG "Disable all C++ asserts (also Eigen debugging)." OFF)
+option(EIGEN_DONT_PARALLELIZE "Disable Eigen multi threading." ON)
+
+# TODO: Automatically Select BLAS vs MKL based on compiler
+option(EIGEN_USE_BLAS "Use BLAS together with Eigen." ON)
+option(EIGEN_USE_MKL_ALL "Use Intel MKL together with Eigen." OFF)
+###################################################################################################
+
+###################################################################################################
+# Set N2P2 Preprocessor Options Variable (Used in subdirectory CMakeLists)
+if(N2P2_NO_SF_GROUPS)
+    set(N2P2_PROJECT_OPTIONS "${N2P2_PROJECT_OPTIONS} -DN2P2_NO_SF_GROUPS")
+endif(N2P2_NO_SF_GROUPS)
+
+if(N2P2_FULL_SFD_MEMORY)
+    set(N2P2_PROJECT_OPTIONS "${N2P2_PROJECT_OPTIONS} -DN2P2_FULL_SFD_MEMORY")
+endif(N2P2_FULL_SFD_MEMORY)
+
+if(N2P2_NO_SF_CACHE)
+    set(N2P2_PROJECT_OPTIONS "${N2P2_PROJECT_OPTIONS} -DN2P2_NO_SF_CACHE")
+endif(N2P2_NO_SF_CACHE)
+
+if(N2P2_NO_ASYM_POLY)
+    set(N2P2_PROJECT_OPTIONS "${N2P2_PROJECT_OPTIONS} -DN2P2_NO_ASYM_POLY")
+endif(N2P2_NO_ASYM_POLY)
+
+if(N2P2_NO_TIME)
+    set(N2P2_PROJECT_OPTIONS "${N2P2_PROJECT_OPTIONS} -DN2P2_NO_TIME")
+endif(N2P2_NO_TIME)
+
+if(N2P2_NO_NEIGH_CHECK)
+    set(N2P2_PROJECT_OPTIONS "${N2P2_PROJECT_OPTIONS} -DN2P2_NO_NEIGH_CHECK")
+endif(N2P2_NO_NEIGH_CHECK)
+
+if(N2P2_NO_MPI)
+    set(N2P2_PROJECT_OPTIONS "${N2P2_PROJECT_OPTIONS} -DN2P2_NO_MPI")
+endif(N2P2_NO_MPI)
+
+if(EIGEN_DONT_PARALLELIZE)
+    set(EIGEN_PROJECT_OPTIONS "${EIGEN_PROJECT_OPTIONS} -DEIGEN_DONT_PARALLELIZE")
+endif(EIGEN_DONT_PARALLELIZE)
+
+if(EIGEN_USE_BLAS)
+    set(EIGEN_PROJECT_OPTIONS "${EIGEN_PROJECT_OPTIONS} -DEIGEN_USE_BLAS")
+endif(EIGEN_USE_BLAS)
+
+if(EIGEN_USE_MKL_ALL)
+    set(EIGEN_PROJECT_OPTIONS "${EIGEN_PROJECT_OPTIONS} -DEIGEN_USE_MKL_ALL")
+endif(EIGEN_USE_MKL_ALL)
+
+set(PROJECT_OPTIONS "${PROJECT_OPTIONS} ${N2P2_PROJECT_OPTIONS} ${EIGEN_PROJECT_OPTIONS}")
+
+if(NDEBUG)
+    set(PROJECT_OPTIONS "${PROJECT_OPTIONS} -DNDEBUG")
+endif(NDEBUG)
 ###################################################################################################
 
 ###################################################################################################

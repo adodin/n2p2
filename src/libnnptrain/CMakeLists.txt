@@ -10,7 +10,8 @@ file(GLOB HDR_FILES "*.h")
 
 ###################################################################################################
 # Specify Build Targets
-add_library(nnptrain ${SRC_FILES})   # Build libnnp.X library. (Shared, pass -D BUILD_SHARED_LIBS)
+add_library(nnptrain ${SRC_FILES})
+add_compile_options(${PROJECT_OPTIONS})
 install(FILES ${HDR_FILES} DESTINATION ${PROJECT_INCLUDE})   # Headers copied at install time
 ###################################################################################################
 
