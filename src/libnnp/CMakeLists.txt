@@ -12,6 +12,7 @@ file(GLOB HDR_FILES "*.h")
 # Specify Build Targets
 add_library(nnp ${SRC_FILES})
 add_compile_options(${PROJECT_OPTIONS})
+configure_file(version.config.h ${CMAKE_CURRENT_SOURCE_DIR}/version.h)
 install(FILES ${HDR_FILES} DESTINATION ${PROJECT_INCLUDE})   # Headers copied at install time
 ###################################################################################################
 

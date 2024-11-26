@@ -5,7 +5,17 @@
 ###################################################################################################
 # Project & CMake Information
 cmake_minimum_required(VERSION 3.16)    # Same required version as LAMMPS (no extra dependencies)
-project(n2p2)
+project(n2p2 VERSION 2.2.0)
+###################################################################################################
+
+###################################################################################################
+# Git version info for project
+execute_process(COMMAND git describe --tags --always
+        OUTPUT_VARIABLE GIT_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND git rev-parse HEAD
+        OUTPUT_VARIABLE GIT_REV OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND git rev-parse --abbrev-ref HEAD
+        OUTPUT_VARIABLE GIT_BRANCH OUTPUT_STRIP_TRAILING_WHITESPACE)
 ###################################################################################################
 
 ###################################################################################################
@@ -40,7 +50,7 @@ option(N2P2_NO_MPI "Compile without MPI support." OFF)
 option(NDEBUG "Disable all C++ asserts (also Eigen debugging)." OFF)
 option(EIGEN_DONT_PARALLELIZE "Disable Eigen multi threading." ON)
 
-# TODO: Automatically Select BLAS vs MKL based on compiler
+
 option(EIGEN_USE_BLAS "Use BLAS together with Eigen." ON)
 option(EIGEN_USE_MKL_ALL "Use Intel MKL together with Eigen." OFF)
 ###################################################################################################
