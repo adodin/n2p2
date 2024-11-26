@@ -40,6 +40,9 @@ set(CMAKE_SHARED_LIBRARY_SUFFIX .so)
 ###################################################################################################
 # Document CLI Option Defaults
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
+option(NDEBUG "Disable all C++ asserts (also Eigen debugging)." OFF)
+
+# N2P2 Compile Options
 option(N2P2_NO_SF_GROUPS "Disable Symmetry function groups (NOT RECOMMENDED)" OFF)
 option(N2P2_FULL_SFD_MEMORY "Store zero symmetry function derivatives" OFF)
 option(N2P2_NO_SF_CACHE "Do not use symmetry function cache." OFF)
@@ -47,10 +50,13 @@ option(N2P2_NO_ASYM_POLY "Disable asymmetric polynomial symmetry functions." OFF
 option(N2P2_NO_TIME "Build with dummy Stopwatch class." OFF)
 option(N2P2_NO_NEIGH_CHECK "Disable check for low number of neighbors." OFF)
 option(N2P2_NO_MPI "Compile without MPI support." OFF)
-option(NDEBUG "Disable all C++ asserts (also Eigen debugging)." OFF)
+
+# Which interfaces to build
+option(N2P2_IF_LAMMPS "Build LAMMPS interface into libnnpif" ON)
+option(N2P2_IF_CABANA "Build CabanaMD interface into libnnpif" ON)
+
+# Eigen Optimization Options
 option(EIGEN_DONT_PARALLELIZE "Disable Eigen multi threading." ON)
-
-
 option(EIGEN_USE_BLAS "Use BLAS together with Eigen." ON)
 option(EIGEN_USE_MKL_ALL "Use Intel MKL together with Eigen." OFF)
 ###################################################################################################
@@ -102,10 +108,19 @@ set(PROJECT_OPTIONS "${PROJECT_OPTIONS} ${N2P2_PROJECT_OPTIONS} ${EIGEN_PROJECT_
 if(NDEBUG)
     set(PROJECT_OPTIONS "${PROJECT_OPTIONS} -DNDEBUG")
 endif(NDEBUG)
+
+if(N2P2_IF_LAMMPS)
+    list(APPEND INTERFACES "${INTERFACES} LAMMPS")
+endif(N2P2_IF_LAMMPS)
+
+if(N2P2_IF_CABANA)
+    list(APPEND INTERFACES "${INTERFACES} CabanaMD")
+endif(N2P2_IF_CABANA)
 ###################################################################################################
 
 ###################################################################################################
 # Go into each subdirectory
 add_subdirectory(libnnp)
 add_subdirectory(libnnptrain)
+add_subdirectory(libnnpif)
 ###################################################################################################
