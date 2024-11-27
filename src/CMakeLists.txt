@@ -123,4 +123,5 @@ endif(N2P2_IF_CABANA)
 add_subdirectory(libnnp)
 add_subdirectory(libnnptrain)
 add_subdirectory(libnnpif)
+add_subdirectory(interface)
 ###################################################################################################

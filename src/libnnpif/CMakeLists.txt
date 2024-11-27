@@ -1,5 +1,5 @@
 ###################################################################################################
-# CMake Build System for n2p2/libnnptrain
+# CMake Build System for n2p2/libnnpif
 ###################################################################################################
 
 ###################################################################################################
@@ -31,5 +31,5 @@ install(FILES ${HDR_FILES} DESTINATION ${PROJECT_INCLUDE})   # Headers copied at
 # Find Required Package dependencies
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH} ${PROJECT_SOURCE_DIR}/libnnp)
-target_link_libraries(nnpif MPI)
+target_link_libraries(nnpif MPI nnp)
 ###################################################################################################
