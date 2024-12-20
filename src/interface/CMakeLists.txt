@@ -23,7 +23,7 @@ endif(LAMMPS_INTERNAL)
 
 # Download & Build own LAMMPS executable
 option(BUILD_LAMMPS
-        "Build minimal LAMMPS executable. (Either Specify DOWNLOAD_LAMMPS=ON or LAMMPS_PATH)" ON)
+        "Build minimal LAMMPS executable. (Either Specify DOWNLOAD_LAMMPS=ON or LAMMPS_PATH)" OFF)
 
 if (NOT LAMMPS_PATH)
     option(DOWNLOAD_LAMMPS "Download LAMMPS. This supersedes LAMMPS_PATH variable." ON)
@@ -75,6 +75,16 @@ add_custom_target(link_n2p2 ALL
 add_custom_target(update_lammps ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/interface/LAMMPS/src/USER-NNP/ ${LAMMPS_PATH}src/USER-NNP
         COMMENT "Updating LAMMPS USER-NNP package.")
+###################################################################################################
+
+###################################################################################################
+# Patch LAMMPS makefile.mpi
+add_custom_target(patch_lammps_makefile ALL
+        COMMAND sed -i.bak "s,^CC .*$$,CC      =       ${MPI_CXX_COMPILER}," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
+        COMMAND sed -i.bak "s,^CCFLAGS .*$$,CCFLAGS =       ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_MPI}," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
+        COMMAND sed -i.bak "s,^LINK .*$$,LINK =          ${MPI_CXX_COMPILER} ," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
+        COMMAND sed -i.bak "s,^LINKFLAGS .*$$,LINKFLAGS =     ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_MPI} -lnnp -lnnpif," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
+        COMMENT "Patching LAMMPS makefile.mpi")
 ###################################################################################################
 
 ###################################################################################################
