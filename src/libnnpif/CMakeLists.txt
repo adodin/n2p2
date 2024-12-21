@@ -24,7 +24,13 @@ endif(N2P2_IF_CABANA)
 # Specify Build Targets
 add_library(nnpif ${SRC_FILES})
 add_compile_options(${PROJECT_OPTIONS})
-install(FILES ${HDR_FILES} DESTINATION ${PROJECT_INCLUDE})   # Headers copied at install time
+
+# Headers need to be available at compile time to enable LAMMPS build
+add_custom_target(install-nnpif-headers ALL
+        COMMAND ${CMAKE_COMMAND} -E copy ${LAMMPS_HDR_FILES} ${PROJECT_INCLUDE}
+        COMMAND ${CMAKE_COMMAND} -E copy ${CABANA_HDR_FILES} ${PROJECT_INCLUDE}
+        COMMENT "Installing libnnpif headers.")
+#install(FILES ${HDR_FILES} DESTINATION ${PROJECT_INCLUDE})   # Headers copied at install time
 ###################################################################################################
 
 ###################################################################################################
