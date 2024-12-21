@@ -89,6 +89,9 @@ endif(N2P2_NO_NEIGH_CHECK)
 
 if(N2P2_NO_MPI)
     set(N2P2_PROJECT_OPTIONS "${N2P2_PROJECT_OPTIONS} -DN2P2_NO_MPI")
+else()
+    set(CMAKE_C_COMPILER "mpicc")
+    set(CMAKE_CXX_COMPILER "mpicxx")
 endif(N2P2_NO_MPI)
 
 if(EIGEN_DONT_PARALLELIZE)
@@ -119,9 +122,15 @@ endif(N2P2_IF_CABANA)
 ###################################################################################################
 
 ###################################################################################################
+find_package(MPI REQUIRED)
+find_package(GSL REQUIRED)
+find_package(Eigen3 3.4 REQUIRED NO_MODULE)
+link_directories(${GSL_LIBRARY_DIRS} ${MPI_LIBRARY_DIRS})
+
 # Go into each subdirectory
 add_subdirectory(libnnp)
 add_subdirectory(libnnptrain)
+add_subdirectory(application)
 add_subdirectory(libnnpif)
 add_subdirectory(interface)
 ###################################################################################################

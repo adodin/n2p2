@@ -61,35 +61,35 @@ if(DOWNLOAD_LAMMPS)
 endif(DOWNLOAD_LAMMPS)
 ###################################################################################################
 
-###################################################################################################
-# Symlink to n2p2 Library from LAMMPS
-add_custom_target(link_n2p2 ALL
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${LAMMPS_PATH}lib/nnp
-        COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} ${LAMMPS_PATH}/lib/nnp/lib
-        COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_INCLUDE} ${LAMMPS_PATH}/lib/nnp/include
-        COMMENT "Creating Symlink from LAMMPS to n2p2.")
-###################################################################################################
-
-###################################################################################################
-# Copy Source Code to LAMMPS
-add_custom_target(update_lammps ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_SOURCE_DIR}/interface/LAMMPS/src/USER-NNP/ ${LAMMPS_PATH}src/USER-NNP
-        COMMENT "Updating LAMMPS USER-NNP package.")
-###################################################################################################
-
-###################################################################################################
-# Patch LAMMPS makefile.mpi
-add_custom_target(patch_lammps_makefile ALL
-        COMMAND sed -i.bak "s,^CC .*$$,CC      =       ${MPI_CXX_COMPILER}," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
-        COMMAND sed -i.bak "s,^CCFLAGS .*$$,CCFLAGS =       ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_MPI}," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
-        COMMAND sed -i.bak "s,^LINK .*$$,LINK =          ${MPI_CXX_COMPILER} ," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
-        COMMAND sed -i.bak "s,^LINKFLAGS .*$$,LINKFLAGS =     ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_MPI} -lnnp -lnnpif," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
-        COMMENT "Patching LAMMPS makefile.mpi")
-###################################################################################################
-
-###################################################################################################
-# Build a minimal LAMMPS Executable (uses LAMMPS make build system)
 if(BUILD_LAMMPS)
+    ###################################################################################################
+    # Symlink to n2p2 Library from LAMMPS
+    add_custom_target(link_n2p2 ALL
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${LAMMPS_PATH}lib/nnp
+            COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} ${LAMMPS_PATH}/lib/nnp/lib
+            COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_INCLUDE} ${LAMMPS_PATH}/lib/nnp/include
+            COMMENT "Creating Symlink from LAMMPS to n2p2.")
+    ###################################################################################################
+
+    ###################################################################################################
+    # Copy Source Code to LAMMPS
+    add_custom_target(update_lammps ALL
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/interface/LAMMPS/src/USER-NNP/ ${LAMMPS_PATH}src/USER-NNP
+            COMMENT "Updating LAMMPS USER-NNP package.")
+    ###################################################################################################
+
+    ###################################################################################################
+    # Patch LAMMPS makefile.mpi
+    add_custom_target(patch_lammps_makefile ALL
+            COMMAND sed -i.bak "s,^CC .*$$,CC      =       ${MPI_CXX_COMPILER}," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
+            COMMAND sed -i.bak "s,^CCFLAGS .*$$,CCFLAGS =       ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_MPI}," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
+            COMMAND sed -i.bak "s,^LINK .*$$,LINK =          ${MPI_CXX_COMPILER} ," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
+            COMMAND sed -i.bak "s,^LINKFLAGS .*$$,LINKFLAGS =     ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_MPI} -lnnp -lnnpif," ${LAMMPS_PATH}/src/MAKE/Makefile.mpi
+            COMMENT "Patching LAMMPS makefile.mpi")
+    ###################################################################################################
+
+    ###################################################################################################
+    # Build a minimal LAMMPS Executable (uses LAMMPS make build system)
     add_custom_target(build_lammps ALL
             COMMAND ${CMAKE_COMMAND} -E chdir ${LAMMPS_PATH}/src/ make yes-user-nnp
             COMMAND ${CMAKE_COMMAND} -E chdir ${LAMMPS_PATH}/src/ make yes-molecule
@@ -97,5 +97,6 @@ if(BUILD_LAMMPS)
             DEPENDS "${LAMMPS_PATH}/src/USER-NNP"
             COMMENT "Building minimal LAMMPS Distribution. Version: ${LAMMPS_VERSION}")
     install(FILES "${LAMMPS_PATH}/src/lmp_mpi" DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    add_dependencies(build_lammps link_n2p2 update_lammps patch_lammps_makefile nnpif)
+    ###################################################################################################
 endif(BUILD_LAMMPS)
-###################################################################################################
