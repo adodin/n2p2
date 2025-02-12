@@ -37,5 +37,5 @@ add_custom_target(install-nnpif-headers ALL
 # Find Required Package dependencies
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH} ${PROJECT_SOURCE_DIR}/libnnp)
-target_link_libraries(nnpif MPI nnp)
+target_link_libraries(nnpif MPI::MPI_CXX nnp)
 ###################################################################################################

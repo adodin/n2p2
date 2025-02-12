@@ -18,5 +18,5 @@ install(FILES ${HDR_FILES} DESTINATION ${PROJECT_INCLUDE})   # Headers copied at
 ###################################################################################################
 # Find Required Package dependencies
 include_directories(${MPI_INCLUDE_PATH} ${PROJECT_SOURCE_DIR}/libnnp ${GSL_INCLUDE_DIRS})
-target_link_libraries(nnptrain MPI GSL Eigen3::Eigen nnp)
+target_link_libraries(nnptrain MPI::MPI_CXX GSL Eigen3::Eigen nnp)
 ###################################################################################################
