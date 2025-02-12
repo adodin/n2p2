@@ -54,11 +54,11 @@ foreach(app IN ITEMS ${APP_CORE})
 endforeach(app IN ITEMS ${APP_CORE})
 
 foreach(app IN ITEMS ${APP_DATASET})
-    target_link_libraries(${app} PRIVATE GSL nnp nnptrain)
+    target_link_libraries(${app} PRIVATE ${GSL_LIBRARIES}  nnp nnptrain)
 endforeach(app IN ITEMS ${APP_DATASET})
 
 foreach(app IN ITEMS ${APP_TRAINING})
-    target_link_libraries(${app} PRIVATE GSL Eigen3::Eigen nnp nnptrain)
+    target_link_libraries(${app} PRIVATE ${GSL_LIBRARIES}  Eigen3::Eigen nnp nnptrain)
 endforeach(app IN ITEMS ${APP_TRAINING})
 
 ###################################################################################################]]
