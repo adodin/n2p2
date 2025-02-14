@@ -26,7 +26,7 @@ option(BUILD_LAMMPS
         "Build minimal LAMMPS executable. (Either Specify DOWNLOAD_LAMMPS=ON or LAMMPS_PATH)" OFF)
 
 if (NOT LAMMPS_PATH)
-    option(DOWNLOAD_LAMMPS "Download LAMMPS. This supersedes LAMMPS_PATH variable." ON)
+    option(DOWNLOAD_LAMMPS "Download LAMMPS. This supersedes LAMMPS_PATH variable." OFF)
 else()
     option(DOWNLOAD_LAMMPS "Download LAMMPS. This supersedes LAMMPS_PATH variable." OFF)
 endif (NOT LAMMPS_PATH)
