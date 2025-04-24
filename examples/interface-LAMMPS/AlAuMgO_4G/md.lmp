@@ -1,0 +1,60 @@
+###############################################################################
+# MD simulation for MgO with Al/Au
+###############################################################################
+
+###############################################################################
+# VARIABLES
+###############################################################################
+clear
+# Configuration files
+variable cfgFile         string "input.data"
+# Timesteps
+variable numSteps        equal  0
+variable dt              equal  0.0005
+# NN
+#variable hdnnpCutoff     equal  8.01
+variable hdnnpCutoff     equal  8.00000001
+variable hdnnpDir        string "hdnnp-data"
+# Masses
+variable mass_O          equal  15.9994
+variable mass_Mg         equal  24.305
+variable mass_Al         equal  26.981539
+variable mass_Au         equal  196.96657
+
+###############################################################################
+# GENERAL SETUP
+###############################################################################
+units metal
+boundary p p p
+atom_style charge
+atom_modify map yes
+read_data ${cfgFile}
+mass 1 ${mass_O}
+mass 2 ${mass_Mg}
+mass 3 ${mass_Al}
+mass 4 ${mass_Au}
+timestep ${dt}
+velocity all create 300.0 12345
+thermo 1
+
+neighbor 0.0 bin
+neigh_modify delay 10 # Seems this was the default previously (29Oct2020).
+
+###############################################################################
+# NN
+###############################################################################
+pair_style hdnnp/4g dir ${hdnnpDir} showew yes showewsum 10 resetew no maxew 1000000 cflength 1.0 cfenergy 1.0 emap "1:O,2:Mg,3:Al,4:Au"
+pair_coeff * * ${hdnnpCutoff}
+kspace_style hdnnp ewald 1.0e-6
+fix 1 all hdnnp 1 1.0e-7 1.0e-1 1.0e-1 100 nnp nnp 1
+
+###############################################################################
+# INTEGRATOR
+###############################################################################
+fix INT all nve
+#dump 1 all atom 1 traj.dump
+
+###############################################################################
+# SIMULATION
+###############################################################################
+run ${numSteps}

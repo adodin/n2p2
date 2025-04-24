@@ -1,0 +1,63 @@
+###############################################################################
+# MD simulation for carbon chain
+###############################################################################
+
+###############################################################################
+# VARIABLES
+###############################################################################
+clear
+# Configuration files
+variable cfgFile         string "water.data"
+# Timesteps
+variable numSteps        equal  10
+variable dt              equal  0.0005
+# NN
+#variable hdnnpCutoff     equal  4.238709440998 #8.01
+variable hdnnpCutoff     equal  4.23341767420363 #8.00000001
+variable hdnnpDir        string "hdnnp-data"
+# Masses
+variable mass_H          equal  1.00794
+variable mass_O          equal  15.9994
+
+# Conversions
+variable c1				 equal 	1.8897261328
+variable c2				 equal  0.0367493254
+#variable c1				 equal  1.0
+#variable c2				 equal  1.0
+
+###############################################################################
+# GENERAL SETUP
+###############################################################################
+units metal
+boundary p p p
+atom_style charge
+atom_modify map yes
+read_data ${cfgFile}
+mass 1 ${mass_H}
+mass 2 ${mass_O}
+timestep ${dt}
+thermo 1
+
+neighbor 0.0 bin
+neigh_modify delay 10 # Seems this was the default previously (29Oct2020).
+
+###############################################################################
+# NN
+###############################################################################
+pair_style hdnnp/4g dir ${hdnnpDir} showew no showewsum 10 resetew no maxew 1000000 cflength ${c1} cfenergy ${c2} emap "1:H,2:O"
+pair_coeff * * ${hdnnpCutoff}
+kspace_style hdnnp ewald 1.0e-6
+#fix 1 all hdnnp 1 1.0e-5 1.0e-4 1.0e-2 100 nnp
+fix 1 all hdnnp 1 1.0e-7 1.0e-1 1.0e-1 100 nnp nnp 1 # No clue whether this is the right flag at the end.
+
+
+###############################################################################
+# INTEGRATOR
+###############################################################################
+fix INT all nve
+#dump 1 all atom 1 traj.dump
+
+###############################################################################
+# SIMULATION
+###############################################################################
+run ${numSteps}

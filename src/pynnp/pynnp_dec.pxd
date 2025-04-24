@@ -82,7 +82,7 @@ cdef extern from "Log.h" namespace "nnp":
 ###############################################################################
 # Settings
 ###############################################################################
-cdef extern from "Settings.h" namespace "nnp":
+cdef extern from "Settings.h" namespace "nnp::settings":
     #typedef std::multimap<std::string,
     #                      std::pair<std::string, std::size_t> > KeyMap;
     #typedef std::pair<KeyMap::const_iterator,
@@ -116,7 +116,7 @@ cdef extern from "Vec3D.h" namespace "nnp":
         #double&       operator[](std::size_t const index);
         #double const& operator[](std::size_t const index) const;
         bool   eq        "operator=="(const Vec3D& rhs) except +
-        bool   ne        "operator!="(const Vec3D& rhs) except +;
+        bool   ne        "operator!="(const Vec3D& rhs) except +
         double norm() except +
         double norm2() except +
         Vec3D& normalize() except +
@@ -226,10 +226,12 @@ cdef extern from "Structure.h" namespace "nnp":
         #void                     remap(Atom& atom);
         void           toNormalizedUnits(double meanEnergy,
                                          double convEnergy,
-                                         double convLength) except +
+                                         double convLength,
+                                         double convCharge) except +
         void           toPhysicalUnits(double meanEnergy,
                                        double convEnergy,
-                                       double convLength) except +
+                                       double convLength,
+                                       double convCharge) except +
         size_t         getMaxNumNeighbors() except +
         #void                     freeAtoms(bool all);
         void           reset() except +
@@ -281,9 +283,7 @@ cdef extern from "Mode.h" namespace "nnp":
                                      bool writeExtrapolationWarnings,
                                      bool stopOnExtrapolationWarnings) except +
         void           setupNeuralNetwork()
-        void           setupNeuralNetworkWeights(
-                                          string fileNameFormatshort,
-                                          string fileNameFormatCharge) except +
+        void           setupNeuralNetworkWeights() except +
         void           calculateSymmetryFunctions(
                                                 Structure structure,
                                                 bool      derivatives) except +
@@ -336,7 +336,7 @@ cdef extern from "Mode.h" namespace "nnp":
         #                                                      = "output.nn") const;
         #void                     writeSettingsFile(
         #                                 std::ofstream* const& file) const;
-
+        
 ###############################################################################
 # Prediction
 ###############################################################################

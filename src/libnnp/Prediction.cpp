@@ -15,7 +15,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "Prediction.h"
+#include "Stopwatch.h"
 #include <fstream>   // std::ifstream
+#include <iostream>
+#include <map>       // std::map
 #include <stdexcept> // std::runtime_error
 #include "utility.h"
 
@@ -36,8 +39,11 @@ void Prediction::setup()
     loadSettingsFile(fileNameSettings);
     setupGeneric();
     setupSymmetryFunctionScaling(fileNameScaling);
-    setupNeuralNetworkWeights(formatWeightsFilesShort,
-                              formatWeightsFilesCharge);
+    map<string, string> formatWeights {
+        {"short", formatWeightsFilesShort},
+        {"elec", formatWeightsFilesCharge}
+    };
+    setupNeuralNetworkWeights(formatWeights);
     setupSymmetryFunctionStatistics(false, false, true, false);
 }
 
@@ -51,7 +57,7 @@ void Prediction::readStructureFromFile(string const& fileName)
     removeEnergyOffset(structure);
     if (normalize)
     {
-        structure.toNormalizedUnits(meanEnergy, convEnergy, convLength);
+        structure.toNormalizedUnits(meanEnergy, convEnergy, convLength, convCharge);
     }
     file.close();
 
@@ -60,19 +66,10 @@ void Prediction::readStructureFromFile(string const& fileName)
 
 void Prediction::predict()
 {
-    structure.calculateNeighborList(maxCutoffRadius);
-#ifdef N2P2_NO_SF_GROUPS
-    calculateSymmetryFunctions(structure, true);
-#else
-    calculateSymmetryFunctionGroups(structure, true);
-#endif
-    calculateAtomicNeuralNetworks(structure, true);
-    calculateEnergy(structure);
-    if (nnpType == NNPType::SHORT_CHARGE_NN) calculateCharge(structure);
-    calculateForces(structure);
+    evaluateNNP(structure);
     if (normalize)
     {
-        structure.toPhysicalUnits(meanEnergy, convEnergy, convLength);
+        structure.toPhysicalUnits(meanEnergy, convEnergy, convLength, convCharge);
     }
     addEnergyOffset(structure, false);
     addEnergyOffset(structure, true);

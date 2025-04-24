@@ -3,6 +3,45 @@ Changelog
 
 All notable changes to this project will be documented in this file.
 
+Version 3.0.0 - 2024-1?-??
+--------------------------
+
+New features
+^^^^^^^^^^^^
+
+* 4G-HDNNPs training/prediction in n2p2 (Philipp Misof).
+* 4G-HDNNPs prediction in LAMMPS+n2p2 (Emir Kocer).
+
+Version 2.3.0 - 2024-11-23
+--------------------------
+
+New features
+^^^^^^^^^^^^
+
+* Allow manual definition of train/test set (add ``set=train/test`` after ``begin`` in
+  input.data).
+* Additional symmetry function log output, extra column ``spread``.
+* Structure ``remap()`` function is now available in pynnp.
+
+Maintenance
+^^^^^^^^^^^
+
+* Fixed CI: Cython updated to version 3.0+, added ``__rmul__`` to ``Vec3D`` in
+  pynnp.
+
+Important changes
+^^^^^^^^^^^^^^^^^
+
+* Synchronized LAMMPS developer build with LAMMPS-distributed source: Finally
+  switched to pair style ``hdnnp`` everywhere.
+
+Documentation
+^^^^^^^^^^^^^
+
+* Removed old ``nnp`` pair style description page.
+* Updated LAMMPS interface build instructions page.
+* Added train/test set split documentation.
+
 Version 2.2.0 - 2022-05-23
 --------------------------
 

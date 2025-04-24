@@ -1,6 +1,6 @@
 #!/bin/make -f
 
-DOXYGEN_VERSION = "Release_1_9_4"
+DOXYGEN_VERSION = "Release_1_13_2"
 THEME_VERSION = "v2.0.3"
 
 doc: doxygen theme.css

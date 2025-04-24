@@ -62,7 +62,7 @@ AR=$(PROJECT_AR)
 ARFLAGS=$(PROJECT_ARFLAGS)
 
 # Extra include paths for compiling.
-INCLUDES=-I./ -I$(PROJECT_INCLUDE)/
+INCLUDES=-I./ -I$(PROJECT_INCLUDE)/ -I$(PROJECT_EIGEN)
 
 
 ###############################################################################
@@ -92,7 +92,6 @@ OBJ=$(SRC:.cpp=.o)
 	headers \
 	lammps-prep \
 	lammps-mf \
-	lammps-mf-internal \
 	lammps-cmake \
 	clean rebuild
 
@@ -111,10 +110,7 @@ lammps-prep: lammps-mf lammps-cmake
 lammps-mf:
 	cp LAMMPS/Makefile.lammps $(PROJECT_LIB)/Makefile.lammps-extra
 	@sed -i.bak -E "s,(hdnnp_SYSINC =).*,\1 $(LAMMPS_OPTIONS)," $(PROJECT_LIB)/Makefile.lammps-extra
-	@rm $(PROJECT_LIB)/Makefile.lammps-extra.bak
-
-lammps-mf-internal: lammps-mf
-	sed -i.bak -E "s,hdnnp,nnp," $(PROJECT_LIB)/Makefile.lammps-extra
+	@sed -i.bak -E "s,(hdnnp_SYSLIB =.*),\1 $(PROJECT_LDFLAGS_BLAS)," $(PROJECT_LIB)/Makefile.lammps-extra
 	@rm $(PROJECT_LIB)/Makefile.lammps-extra.bak
 
 lammps-cmake:

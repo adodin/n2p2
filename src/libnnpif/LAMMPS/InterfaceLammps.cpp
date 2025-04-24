@@ -22,25 +22,29 @@
 #include "Atom.h"
 #include "Element.h"
 #include "utility.h"
+#include <Eigen/Dense>
 #include <cmath>
 #include <string>
 #include <iostream>
 #include <limits>
+//#include <stdexcept>
 
 #define TOLCUTOFF 1.0E-2
 
 using namespace std;
 using namespace nnp;
+using namespace Eigen;
 
-InterfaceLammps::InterfaceLammps() : myRank      (0    ),
-                                     initialized (false),
-                                     showew      (true ),
-                                     resetew     (false),
-                                     showewsum   (0    ),
-                                     maxew       (0    ),
-                                     cflength    (1.0  ),
-                                     cfenergy    (1.0  )
-                                     
+InterfaceLammps::InterfaceLammps() : myRank             (0    ),
+                                     initialized        (false),
+                                     hasGlobalStructure (false),
+                                     showew             (true ),
+                                     resetew            (false),
+                                     showewsum          (0    ),
+                                     maxew              (0    ),
+                                     cflength           (1.0  ),
+                                     cfenergy           (1.0  ),
+                                     isElecDone         (false)
 {
 }
 
@@ -70,7 +74,7 @@ void InterfaceLammps::initialize(char const* const& directory,
     if (dir.back() != separator) dir += separator;
     Mode::initialize();
     loadSettingsFile(dir + "input.nn");
-    setupGeneric();
+    setupGeneric(dir);
     setupSymmetryFunctionScaling(dir + "scaling.data");
     bool collectStatistics = false;
     bool collectExtrapolationWarnings = false;
@@ -84,7 +88,7 @@ void InterfaceLammps::initialize(char const* const& directory,
                                     collectExtrapolationWarnings,
                                     writeExtrapolationWarnings,
                                     stopOnExtrapolationWarnings);
-    setupNeuralNetworkWeights(dir + "weights.%03d.data");
+    setupNeuralNetworkWeights(dir);
 
     log << "\n";
     log << "*** SETUP: LAMMPS INTERFACE *************"
@@ -250,6 +254,16 @@ void InterfaceLammps::initialize(char const* const& directory,
     initialized = true;
 }
 
+void InterfaceLammps::setGlobalStructureStatus(bool const status)
+{
+    hasGlobalStructure = status;
+}
+
+bool InterfaceLammps::getGlobalStructureStatus()
+{
+    return hasGlobalStructure;
+}
+
 void InterfaceLammps::setLocalAtoms(int              numAtomsLocal,
                                     int const* const atomType)
 {
@@ -265,6 +279,7 @@ void InterfaceLammps::setLocalAtoms(int              numAtomsLocal,
     structure.energy                         = 0.0;
     structure.atoms.clear();
     indexMap.clear();
+    structure.atoms.reserve(numAtomsLocal);
     indexMap.resize(numAtomsLocal, numeric_limits<size_t>::max());
     for (int i = 0; i < numAtomsLocal; i++)
     {
@@ -283,6 +298,25 @@ void InterfaceLammps::setLocalAtoms(int              numAtomsLocal,
         a.numNeighborsPerElement.clear();
         a.numNeighborsPerElement.resize(numElements, 0);
         structure.numAtomsPerElement[a.element]++;
+    }
+
+    return;
+}
+
+void InterfaceLammps::setLocalAtomPositions(double const* const* const atomPos)
+{
+    for (size_t i = 0; i < structure.numAtoms; ++i)
+    {
+        Atom& a = structure.atoms.at(i);
+        a.r[0] = atomPos[i][0] * cflength;
+        a.r[1] = atomPos[i][1] * cflength;
+        a.r[2] = atomPos[i][2] * cflength;
+        if (normalize)
+        {
+            a.r[0] *= convLength;
+            a.r[1] *= convLength;
+            a.r[2] *= convLength;
+        }
     }
 
     return;
@@ -309,6 +343,70 @@ void InterfaceLammps::setLocalTags(int64_t const* const atomTag)
     return;
 }
 
+void InterfaceLammps::setBoxVectors(double const* boxlo,
+                                    double const* boxhi,
+                                    double const  xy,
+                                    double const  xz,
+                                    double const  yz)
+{
+    structure.isPeriodic = true;
+
+    // Box vector a
+    structure.box[0][0] = boxhi[0] - boxlo[0];
+    structure.box[0][1] = 0;
+    structure.box[0][2] = 0;
+
+    // Box vector b
+    structure.box[1][0] = xy;
+    structure.box[1][1] = boxhi[1] - boxlo[1];
+    structure.box[1][2] = 0;
+
+    // Box vector c
+    structure.box[2][0] = xz;
+    structure.box[2][1] = yz;
+    structure.box[2][2] = boxhi[2] - boxlo[2];
+
+    // LAMMPS may set triclinic = 1 even if the following condition is not
+    // satisfied.
+    if (structure.box[0][1] > numeric_limits<double>::min() ||
+        structure.box[0][2] > numeric_limits<double>::min() ||
+        structure.box[1][0] > numeric_limits<double>::min() ||
+        structure.box[1][2] > numeric_limits<double>::min() ||
+        structure.box[2][0] > numeric_limits<double>::min() ||
+        structure.box[2][1] > numeric_limits<double>::min())
+    {
+        structure.isTriclinic = true;
+    }
+
+    for(size_t i = 0; i < 3; ++i)
+    {
+        structure.box[i] *= cflength;
+        if (normalize) structure.box[i] *= convLength;
+    }
+
+    structure.calculateInverseBox();
+    structure.calculateVolume();
+    //cout << "Box vectors: \n";
+    //for(size_t i = 0; i < 3; ++i)
+    //{
+    //    for(size_t j = 0; j < 3; ++j)
+    //    {
+    //        cout << structure.box[i][j] / convLength << " ";
+    //    }
+    //    cout << endl;
+    //}
+
+}
+
+void InterfaceLammps::allocateNeighborlists(int const* const numneigh)
+{
+    for(size_t i = 0; i < structure.numAtoms; ++i)
+    {
+        auto& a = structure.atoms.at(i);
+        a.neighbors.reserve(numneigh[i]);
+    }
+}
+
 void InterfaceLammps::addNeighbor(int     i,
                                   int     j,
                                   int64_t tag,
@@ -325,8 +423,9 @@ void InterfaceLammps::addNeighbor(int     i,
     a.neighbors.push_back(Atom::Neighbor());
     a.numNeighborsPerElement.at(mapTypeToElement[type])++;
     Atom::Neighbor& n = a.neighbors.back();
-    n.index   = j;
-    n.tag     = tag;
+
+    n.index = j;
+    n.tag = tag;
     n.element = mapTypeToElement[type];
     n.dr[0]   = dx * cflength;
     n.dr[1]   = dy * cflength;
@@ -334,24 +433,89 @@ void InterfaceLammps::addNeighbor(int     i,
     n.d       = sqrt(d2) * cflength;
     if (normalize)
     {
-        n.dr[0] *= convLength;
-        n.dr[1] *= convLength;
-        n.dr[2] *= convLength;
-        n.d     *= convLength;
+        n.dr *= convLength;
+        n.d  *= convLength;
     }
 
     return;
 }
 
-void InterfaceLammps::process()
+void InterfaceLammps::finalizeNeighborList()
+{
+    if (nnpType == NNPType::HDNNP_4G)
+    {
+        for (auto& a : structure.atoms)
+        {
+            a.hasNeighborList = true;
+        }
+        // Ewald summation cut-off depends on box vectors.
+        structure.calculateMaxCutoffRadiusOverall(
+                                            ewaldSetup,
+                                            screeningFunction.getOuter(),
+                                            maxCutoffRadius);
+        structure.sortNeighborList();
+        structure.setupNeighborCutoffMap(cutoffs);
+    }
+
+    return;
+}
+
+void InterfaceLammps::process() //TODO : add comments
 {
 #ifdef N2P2_NO_SF_GROUPS
     calculateSymmetryFunctions(structure, true);
 #else
     calculateSymmetryFunctionGroups(structure, true);
 #endif
-    calculateAtomicNeuralNetworks(structure, true);
+    if (nnpType == NNPType::HDNNP_2G)
+    {
+        calculateAtomicNeuralNetworks(structure, true);
+        calculateEnergy(structure);
+        if (normalize)
+        {
+            structure.energy = physicalEnergy(structure, false);
+        }
+        addEnergyOffset(structure, false);
+    }
+    else if (nnpType == NNPType::HDNNP_4G)
+    {
+        if (!isElecDone)
+        {
+            calculateAtomicNeuralNetworks(structure, true, "elec");
+            isElecDone = true;
+        } else
+        {
+            calculateAtomicNeuralNetworks(structure, true, "short");
+            isElecDone = false;
+            calculateEnergy(structure);
+            if (normalize)
+            {
+                structure.energy = physicalEnergy(structure, false);
+            }
+            addEnergyOffset(structure, false);
+        }
+    }
+
+    return;
+}
+
+void InterfaceLammps::processDevelop()
+{
+#ifdef N2P2_NO_SF_GROUPS
+    calculateSymmetryFunctions(structure, true);
+#else
+    calculateSymmetryFunctionGroups(structure, true);
+#endif
+    calculateAtomicNeuralNetworks(structure, true, "");
+    if (nnpType == NNPType::HDNNP_4G)
+    {
+        chargeEquilibration(structure, true);
+        calculateAtomicNeuralNetworks(structure, true, "short");
+        ewaldSetup.logEwaldCutoffs(log, convLength * cflength);
+    }
     calculateEnergy(structure);
+    if (nnpType == NNPType::HDNNP_4G ||
+        nnpType == NNPType::HDNNP_Q) calculateCharge(structure);
     if (normalize)
     {
         structure.energy = physicalEnergy(structure, false);
@@ -365,6 +529,22 @@ double InterfaceLammps::getMaxCutoffRadius() const
 {
     if (normalize) return maxCutoffRadius / convLength / cflength;
     else return maxCutoffRadius / cflength;
+}
+
+double InterfaceLammps::getMaxCutoffRadiusOverall()
+{
+    double cutoff = 0;
+    if(nnpType == NNPType::HDNNP_4G)
+    {
+        structure.calculateMaxCutoffRadiusOverall(
+                                        ewaldSetup,
+                                        screeningFunction.getOuter(),
+                                        maxCutoffRadius);
+        cutoff = structure.maxCutoffRadiusOverall / cflength;
+        if (normalize) cutoff /= convLength;
+    }
+    else cutoff = getMaxCutoffRadius();
+    return cutoff;
 }
 
 double InterfaceLammps::getEnergy() const
@@ -389,12 +569,117 @@ double InterfaceLammps::getAtomicEnergy(int index) const
     }
 }
 
-void InterfaceLammps::getForces(double* const* const& atomF) const
+void InterfaceLammps::getQEqParams(double* const& atomChi, double* const& atomJ,
+                     double* const& sigmaSqrtPi, double *const *const& gammaSqrt2, double& qRef) const
 {
+    for (size_t i = 0; i < structure.atoms.size(); ++i) {
+        Atom const& a = structure.atoms.at(i);
+        size_t const ia = a.index;
+        atomChi[ia] = a.chi;
+    }
+
+    for (size_t i = 0; i < numElements; ++i)
+    {
+        double const iSigma = elements.at(i).getQsigma();
+        atomJ[i] = elements.at(i).getHardness();
+        sigmaSqrtPi[i] = sqrt(M_PI) * iSigma;
+        for (size_t j = 0; j < numElements; j++)
+        {
+            double const jSigma = elements.at(j).getQsigma();
+            gammaSqrt2[i][j] = sqrt(2.0 * (iSigma * iSigma + jSigma * jSigma));
+        }
+    }
+    qRef = structure.chargeRef;
+}
+
+void InterfaceLammps::getdEdQ(double* const& dEtotdQ) const
+{
+    Atom const* ai = NULL;
+    for (size_t i = 0; i < structure.atoms.size(); ++i)
+    {
+        ai = &(structure.atoms.at(i));
+        size_t const ia = ai->index;
+        dEtotdQ[ia] += ai->dEdG.back();
+    }
+}
+
+void InterfaceLammps::getdChidxyz(int ind,
+        double *const &dChidx, double *const &dChidy, double *const &dChidz) const
+{
+    Atom const &ai = structure.atoms.at(ind);
+
+    for (size_t j = 0; j < structure.numAtoms; ++j) {
+        Atom const &aj = structure.atoms.at(j);
+#ifndef NNP_FULL_SFD_MEMORY
+        vector <vector<size_t>> const &tableFull
+                = elements.at(aj.element).getSymmetryFunctionTable();
+#endif
+        Vec3D dChi;
+        // need to add this case because the loop over the neighbors
+        // does not include the contribution dChi_i/dr_i.
+        if (ai.index == j) {
+            for (size_t k = 0; k < aj.numSymmetryFunctions; ++k) {
+                dChi += aj.dChidG.at(k) * aj.dGdr.at(k);
+            }
+        }
+
+        for (auto const &n : aj.neighbors) {
+            if (n.d > maxCutoffRadius) break;
+            if (n.index == ai.index) {
+#ifndef NNP_FULL_SFD_MEMORY
+                vector <size_t> const &table = tableFull.at(n.element);
+                for (size_t k = 0; k < n.dGdr.size(); ++k) {
+                    dChi += aj.dChidG.at(table.at(k)) * n.dGdr.at(k);
+                }
+#else
+                for (size_t k = 0; k < aj.numSymmetryFunctions; ++k)
+                        {
+                            dChi += aj.dChidG.at(k) * n.dGdr.at(k);
+                        }
+#endif
+                }
+            }
+        dChidx[j] = dChi[0];
+        dChidy[j] = dChi[1];
+        dChidz[j] = dChi[2];
+        }
+}
+
+void InterfaceLammps::addCharge(int index, double Q)
+{
+    Atom& a = structure.atoms.at(index);
+    a.charge = Q;
+    //log << strpr("Atom %5zu (%2s) q: %24.16E\n",
+    //             a.tag, elementMap[a.element].c_str(), a.charge);
+}
+
+void InterfaceLammps::getScreeningInfo(double* const& screenInfo) const
+{
+    screenInfo[0] = (double) screeningFunction.getCoreFunctionType(); //TODO: this does not work atm
+    screenInfo[1] = screeningFunction.getInner();
+    screenInfo[2] = screeningFunction.getOuter();
+    screenInfo[3] = 1.0 / (screenInfo[2] - screenInfo[1]); // scale
+}
+
+double InterfaceLammps::getEwaldPrec() const
+{
+    return Mode::getEwaldPrecision();
+}
+
+void InterfaceLammps::setElecDone()
+{
+    if (isElecDone) isElecDone = false;
+}
+
+void InterfaceLammps::addElectrostaticEnergy(double eElec)
+{
+    structure.energyElec = eElec;
+}
+
+void InterfaceLammps::getForces(double* const* const& atomF) const {
     double const cfforce = cflength / cfenergy;
     double convForce = 1.0;
-    if (normalize)
-    {
+    if (normalize) {
         convForce = convLength / convEnergy;
     }
 
@@ -402,28 +687,26 @@ void InterfaceLammps::getForces(double* const* const& atomF) const
     // derivatives are saved in the dEdG arrays of atoms and dGdr arrays of
     // atoms and their neighbors. These are now summed up to the force
     // contributions of local and ghost atoms.
-    Atom const* a = NULL;
+    Atom const *a = NULL;
 
-    for (size_t i =  0; i < structure.atoms.size(); ++i)
-    {
+    for (size_t i = 0; i < structure.atoms.size(); ++i) {
         // Set pointer to atom.
         a = &(structure.atoms.at(i));
 
-#ifndef N2P2_FULL_SFD_MEMORY
-        vector<vector<size_t> > const& tableFull
-            = elements.at(a->element).getSymmetryFunctionTable();
+#ifndef NNP_FULL_SFD_MEMORY
+        vector <vector<size_t>> const &tableFull
+                = elements.at(a->element).getSymmetryFunctionTable();
 #endif
         // Loop over all neighbor atoms. Some are local, some are ghost atoms.
         for (vector<Atom::Neighbor>::const_iterator n = a->neighbors.begin();
-             n != a->neighbors.end(); ++n)
-        {
+             n != a->neighbors.end(); ++n) {
             // Temporarily save the neighbor index. Note: this is the index for
             // the LAMMPS force array.
             size_t const in = n->index;
             // Now loop over all symmetry functions and add force contributions
             // (local + ghost atoms).
-#ifndef N2P2_FULL_SFD_MEMORY
-            vector<size_t> const& table = tableFull.at(n->element);
+#ifndef NNP_FULL_SFD_MEMORY
+            vector <size_t> const &table = tableFull.at(n->element);
             for (size_t s = 0; s < n->dGdr.size(); ++s)
             {
                 double const dEdG = a->dEdG[table.at(s)] * cfforce * convForce;
@@ -432,7 +715,7 @@ void InterfaceLammps::getForces(double* const* const& atomF) const
             {
                 double const dEdG = a->dEdG[s] * cfforce * convForce;
 #endif
-                double const* const dGdr = n->dGdr[s].r;
+                double const *const dGdr = n->dGdr[s].r;
                 atomF[in][0] -= dEdG * dGdr[0];
                 atomF[in][1] -= dEdG * dGdr[1];
                 atomF[in][2] -= dEdG * dGdr[2];
@@ -446,11 +729,189 @@ void InterfaceLammps::getForces(double* const* const& atomF) const
         for (size_t s = 0; s < a->numSymmetryFunctions; ++s)
         {
             double const dEdG = a->dEdG[s] * cfforce * convForce;
-            double const* const dGdr = a->dGdr[s].r;
+            double const *const dGdr = a->dGdr[s].r;
             atomF[ia][0] -= dEdG * dGdr[0];
             atomF[ia][1] -= dEdG * dGdr[1];
             atomF[ia][2] -= dEdG * dGdr[2];
         }
+    }
+
+    return;
+}
+
+void InterfaceLammps::getForcesDevelop(double* const* const& atomF) const
+{
+    double const cfforce = cflength / cfenergy;
+    double convForce = 1.0;
+    if (normalize)
+    {
+        convForce = convLength / convEnergy;
+    }
+
+    // Loop over all local atoms. Neural network and Symmetry function
+    // derivatives are saved in the dEdG arrays of atoms and dGdr arrays of
+    // atoms and their neighbors. These are now summed up to the force
+    // contributions of local and ghost atoms.
+    for (auto const& a : structure.atoms)
+    {
+        size_t const ia = a.index;
+        Vec3D selfForce = a.calculateSelfForceShort();
+        selfForce *= cfforce * convForce;
+        // TODO: ia is not the right index when some atom types are excluded / ignored
+        //       (see use of indexmap)
+        add3DVecToArray(atomF[ia], selfForce);
+
+#ifndef N2P2_FULL_SFD_MEMORY
+        vector<vector<size_t> > const& tableFull
+            = elements.at(a.element).getSymmetryFunctionTable();
+#endif
+        // Loop over all neighbor atoms. Some are local, some are ghost atoms.
+
+        //for (auto const& n : a.neighbors)
+        size_t const numNeighbors = a.getStoredMinNumNeighbors(maxCutoffRadius);
+#ifdef _OPENMP
+        #pragma omp parallel for
+#endif
+        for (size_t k = 0; k < numNeighbors; ++k)
+        {
+            Atom::Neighbor const& n = a.neighbors[k];
+            // Temporarily save the neighbor index. Note: this is the index for
+            // the LAMMPS force array.
+            size_t const in = n.index;
+
+#ifndef N2P2_FULL_SFD_MEMORY
+            Vec3D pairForce = a.calculatePairForceShort(n, &tableFull);
+#else
+            Vec3D pairForce = a.calculatePairForceShort(n);
+#endif
+            pairForce *= cfforce * convForce;
+            add3DVecToArray(atomF[in], pairForce);
+        }
+    }
+
+    // Comment: Will not work with multiple MPI tasks but this routine will
+    //          probably be obsolete when Emir's solution is finished.
+    if (nnpType == NNPType::HDNNP_4G)
+    {
+        Structure const& s = structure;
+        VectorXd lambdaTotal = s.calculateForceLambdaTotal();
+
+#ifdef _OPENMP
+        #pragma omp parallel for
+#endif
+        // OpenMP 4.0 doesn't support range based loops
+        for (size_t i = 0; i < s.numAtoms; ++i)
+        {
+            auto const& ai = s.atoms[i];
+            add3DVecToArray(atomF[i], -ai.pEelecpr * cfforce * convForce);
+
+            for (auto const& aj : s.atoms)
+            {
+                size_t const j = aj.index;
+
+#ifndef N2P2_FULL_SFD_MEMORY
+                vector<vector<size_t> > const& tableFull
+                        = elements.at(aj.element).getSymmetryFunctionTable();
+                Vec3D dChidr = aj.calculateDChidr(ai.index,
+                                                  maxCutoffRadius,
+                                                  &tableFull);
+#else
+                Vec3D dChidr = aj.calculateDChidr(ai.index,
+                                                  maxCutoffRadius);
+#endif
+
+                Vec3D remainingForce = -lambdaTotal(j) * (ai.dAdrQ[j] + dChidr);
+                add3DVecToArray(atomF[i], remainingForce * cfforce * convForce);
+
+            }
+        }
+    }
+    return;
+}
+
+void InterfaceLammps::getForcesChi(double const* const&  lambda,
+                                   double* const* const& atomF) const {
+    double const cfforce = cflength / cfenergy;
+    double convForce = 1.0;
+    if (normalize) {
+        convForce = convLength / convEnergy;
+    }
+
+    // Loop over all local atoms. Neural network and Symmetry function
+    // derivatives are saved in the dEdG arrays of atoms and dGdr arrays of
+    // atoms and their neighbors. These are now summed up to the force
+    // contributions of local and ghost atoms.
+    Atom const *a = NULL;
+
+    for (size_t i = 0; i < structure.atoms.size(); ++i) {
+        // Set pointer to atom.
+        a = &(structure.atoms.at(i));
+
+        // Temporarily save the atom index. Note: this is the index for
+        // the LAMMPS force array.
+        size_t const ia = a->index;
+        // Also save tag - 1 which is the correct position in lambda array.
+        size_t const ta = a->tag - 1;
+
+#ifndef NNP_FULL_SFD_MEMORY
+        vector <vector<size_t>> const &tableFull
+                = elements.at(a->element).getSymmetryFunctionTable();
+#endif
+        // Loop over all neighbor atoms. Some are local, some are ghost atoms.
+        for (vector<Atom::Neighbor>::const_iterator n = a->neighbors.begin();
+             n != a->neighbors.end(); ++n) {
+            // Temporarily save the neighbor index. Note: this is the index for
+            // the LAMMPS force array.
+            size_t const in = n->index;
+            // Also save tag - 1 which is the correct position in lambda array.
+            size_t const tn = n->tag - 1;
+            //std::cout << "Chi : " << a->chi << '\t' << "nei :" << n->index << '\n';
+            // Now loop over all symmetry functions and add force contributions
+            // (local + ghost atoms).
+#ifndef NNP_FULL_SFD_MEMORY
+            vector <size_t> const &table = tableFull.at(n->element);
+            for (size_t s = 0; s < n->dGdr.size(); ++s)
+            {
+                double const dChidG = a->dChidG[table.at(s)]
+                                    * cfforce * convForce;
+#else
+            for (size_t s = 0; s < a->numSymmetryFunctions; ++s)
+            {
+                double const dChidG = a->dChidG[s] * cfforce * convForce;
+#endif
+                double const *const dGdr = n->dGdr[s].r;
+                atomF[in][0] -= lambda[ta] * dChidG * dGdr[0];
+                atomF[in][1] -= lambda[ta] * dChidG * dGdr[1];
+                atomF[in][2] -= lambda[ta] * dChidG * dGdr[2];
+            }
+        }
+        // Loop over all symmetry functions and add force contributions (local
+        // atoms).
+        for (size_t s = 0; s < a->numSymmetryFunctions; ++s)
+        {
+            double const dChidG = a->dChidG[s] * cfforce * convForce;
+            double const *const dGdr = a->dGdr[s].r;
+            atomF[ia][0] -= lambda[ta] * dChidG * dGdr[0];
+            atomF[ia][1] -= lambda[ta] * dChidG * dGdr[1];
+            atomF[ia][2] -= lambda[ta] * dChidG * dGdr[2];
+        }
+    }
+
+    return;
+}
+
+void InterfaceLammps::getCharges(double* const& atomQ) const
+{
+    if (nnpType != NNPType::HDNNP_4G) return;
+    if (!atomQ) return;
+
+    Structure const& s = structure;
+#ifdef _OPENMP
+    #pragma omp parallel for
+#endif
+    for (size_t i = 0; i < s.numAtoms; ++i)
+    {
+        atomQ[i] = s.atoms[i].charge;
     }
 
     return;
@@ -594,4 +1055,19 @@ void InterfaceLammps::clearExtrapolationWarnings()
     }
 
     return;
+}
+
+void InterfaceLammps::writeToFile(string const fileName,
+                                  bool const   append)
+{
+    structure.toPhysicalUnits(meanEnergy, convEnergy, convLength, convCharge);
+    structure.writeToFile(fileName, false, append);
+    structure.toNormalizedUnits(meanEnergy, convEnergy, convLength, convCharge);
+}
+
+void InterfaceLammps::add3DVecToArray(double *const & arr, Vec3D const& v) const
+{
+    arr[0] += v[0];
+    arr[1] += v[1];
+    arr[2] += v[2];
 }
