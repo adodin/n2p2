@@ -18,6 +18,6 @@ install(FILES ${HDR_FILES} DESTINATION ${PROJECT_INCLUDE})   # Headers copied at
 
 ###################################################################################################
 # Find Required Package dependencies
-target_link_libraries(nnp PUBLIC MPI::MPI_CXX)
+target_link_libraries(nnp PUBLIC MPI::MPI_CXX Eigen3::Eigen)
 include_directories(${MPI_INCLUDE_PATH})
 ###################################################################################################

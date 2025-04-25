@@ -26,6 +26,12 @@ endif()
 if(CMAKE_CXX_STANDARD LESS 11)
     message(FATAL_ERROR "C++ standard must be set to at least 11")
 endif()
+
+# Manually append the standard flag to CMAKE_CXX_FLAGS for external Makefile usage
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+endif()
 ###################################################################################################
 
 ###################################################################################################
@@ -126,6 +132,8 @@ find_package(MPI REQUIRED)
 find_package(GSL REQUIRED)
 find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 link_directories(${GSL_LIBRARY_DIRS} ${MPI_LIBRARY_DIRS})
+list(GET GSL_LIBRARIES 0 FIRST_GSL_LIBRARY)
+get_filename_component(GSL_LIBRARY_DIR "${FIRST_GSL_LIBRARY}" DIRECTORY)
 
 # Go into each subdirectory
 add_subdirectory(libnnp)
